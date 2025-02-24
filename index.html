@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вселенная Дружбы</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="controls">
+    <input type="color" id="colorPicker" value="#4CAF50" title="Выберите цвет окантовки">
+    <button id="createList">Создать список</button>
+    <div id="hintMenu">
+      <h3>Подсказки</h3>
+      <ul>
+        <li>Панорамируйте, перетаскивая мышью</li>
+        <li>Нажмите на другого пользователя для запроса дружбы</li>
+        <li>Кликните на список для редактирования</li>
+        <li>Правый клик по списку для удаления</li>
+      </ul>
+    </div>
+  </div>
+  <canvas id="universeCanvas"></canvas>
+  
+  <!-- Подключаем Telegram Web Apps -->
+  <script async src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <script type="module" src="main.js"></script>
+</body>
+</html>
