@@ -6,18 +6,18 @@ import {
   updateUserOutlineColor,
   offsetX,
   offsetY,
-  drawUser
+  drawUser,
+  user
 } from './canvas.js';
 import { initFriends, drawFriends, processFriendClick, toggleFriendship } from './friends.js';
 import { initLists, drawLists, createNewList, processListClick, processListContextMenu } from './lists.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Интеграция с Telegram Web Apps: сигнализируем, что приложение готово
+  // Telegram Web Apps: сигнализируем, что приложение готово
   if (window.Telegram && window.Telegram.WebApp) {
     window.Telegram.WebApp.ready();
-    // Дополнительно можно установить тему или использовать другие методы Telegram API
   }
-
+  
   const canvas = document.getElementById('universeCanvas');
   const ctx = canvas.getContext('2d');
   
@@ -25,77 +25,99 @@ document.addEventListener('DOMContentLoaded', () => {
   setCanvasDimensions(canvas);
   initCanvas(canvas, ctx);
   
-  // Инициализируем модули друзей и списков
-  initFriends(canvas);
-  initLists();
+  // На старте показываем оверлей регистрации
+  const regOverlay = document.getElementById('registrationOverlay');
+  regOverlay.style.display = 'flex'; // или block – зависит от CSS
   
-  // Функция полного перерисовывания всего пространства
+  // Элементы регистрации: выбор цвета и кнопка подтверждения
+  const regColorPicker = document.getElementById('regColorPicker');
+  const regConfirmBtn = document.getElementById('regConfirmBtn');
+  
+  regConfirmBtn.addEventListener('click', () => {
+    // Сохраняем выбранный цвет для окантовки
+    updateUserOutlineColor(regColorPicker.value);
+    // Отмечаем пользователя как зарегистрированного
+    user.registered = true;
+    // Скрываем оверлей регистрации
+    regOverlay.style.display = 'none';
+    // Инициализируем модули (например, друзей и списки) – предполагается, что в friends.js и lists.js
+    initFriends(canvas);
+    initLists();
+    // Запускаем основное отображение вселенной
+    fullRedraw();
+    registerEventHandlers();
+  });
+  
+  // Функция полной перерисовки (отображаются только данные зарегистрированных пользователей)
   function fullRedraw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawFriends();
-    drawLists();
-    drawUser();
+    if (user.registered) {
+      drawFriends();
+      drawLists();
+      drawUser();
+    }
   }
   
-  // Начальная отрисовка
-  fullRedraw();
-  
-  // Обработка изменения размеров окна
-  window.addEventListener('resize', () => {
-    setCanvasDimensions(canvas);
-    fullRedraw();
-  });
-  
-  // Обработка панорамирования (перетаскивание)
-  registerPanHandlers(canvas, fullRedraw);
-  
-  // Изменение цвета окантовки персонажа через color picker
-  const colorPicker = document.getElementById('colorPicker');
-  colorPicker.addEventListener('input', (e) => {
-    updateUserOutlineColor(e.target.value);
-    fullRedraw();
-  });
-  
-  // Обработка создания нового списка
-  const createListBtn = document.getElementById('createList');
-  createListBtn.addEventListener('click', () => {
-    createNewList();
-    fullRedraw();
-  });
-  
-  // Обработка клика по canvas (проверка нажатия на друга или список)
-  canvas.addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    
-    // Проверка клика по другому пользователю (персонажу)
-    const friend = processFriendClick(clickX, clickY);
-    if (friend) {
-      toggleFriendship(friend);
+  // Регистрируем обработчики событий (запускаются после регистрации)
+  function registerEventHandlers() {
+    window.addEventListener('resize', () => {
+      setCanvasDimensions(canvas);
       fullRedraw();
-      return;
-    }
-    
-    // Если не кликнули по другу – проверяем клики по спискам
-    const worldX = clickX - offsetX;
-    const worldY = clickY - offsetY;
-    if (processListClick(worldX, worldY)) {
-      fullRedraw();
-      return;
-    }
-  });
+    });
   
-  // Обработка правого клика для удаления списка
-  canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    const worldX = clickX - offsetX;
-    const worldY = clickY - offsetY;
-    if (processListContextMenu(worldX, worldY)) {
-      fullRedraw();
+    registerPanHandlers(canvas, fullRedraw);
+  
+    // Если нужен дополнительный color picker в основной панели (например, для изменения окантовки позже)
+    const mainColorPicker = document.getElementById('colorPicker');
+    if (mainColorPicker) {
+      mainColorPicker.addEventListener('input', (e) => {
+        updateUserOutlineColor(e.target.value);
+        fullRedraw();
+      });
     }
-  });
+  
+    const createListBtn = document.getElementById('createList');
+    if (createListBtn) {
+      createListBtn.addEventListener('click', () => {
+        createNewList();
+        fullRedraw();
+      });
+    }
+  
+    // Обработка кликов по canvas: сначала проверяем нажатия по друзьям, затем по спискам
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      
+      // Проверка клика по пользователю-другу
+      const friend = processFriendClick(clickX, clickY);
+      if (friend) {
+        toggleFriendship(friend);
+        fullRedraw();
+        return;
+      }
+      
+      // Если клик не на друге – проверяем попадание по круговым спискам
+      const worldX = clickX - offsetX;
+      const worldY = clickY - offsetY;
+      if (processListClick(worldX, worldY)) {
+        fullRedraw();
+        return;
+      }
+    });
+  
+    // Правый клик для удаления списка
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      const worldX = clickX - offsetX;
+      const worldY = clickY - offsetY;
+      if (processListContextMenu(worldX, worldY)) {
+        fullRedraw();
+      }
+    });
+  }
 });
